@@ -143,68 +143,90 @@ static void draw_farm(GContext *ctx, GRect bounds, const Farm *f) {
 
   format_money(line, sizeof(line), f->money);
   graphics_draw_text(ctx, "PRINT FARM", fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-                     GRect(2, 0, bounds.size.w / 2, 16), GTextOverflowModeTrailingEllipsis,
+                     GRect(2, 1, bounds.size.w / 2, 16), GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentLeft, NULL);
   graphics_draw_text(ctx, line, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-                     GRect(bounds.size.w / 2, 0, bounds.size.w / 2 - 2, 16),
+                     GRect(bounds.size.w / 2, 1, bounds.size.w / 2 - 2, 16),
                      GTextOverflowModeTrailingEllipsis, GTextAlignmentRight, NULL);
 
-  snprintf(line, sizeof(line), "Rep %u  Staff %u", (unsigned)f->reputation,
+  snprintf(line, sizeof(line), "Rep %u · Staff %u", (unsigned)f->reputation,
            (unsigned)f->staff_level);
   graphics_context_set_text_color(ctx, C_DIM);
   graphics_draw_text(ctx, line, fonts_get_system_font(FONT_KEY_GOTHIC_14),
-                     GRect(2, 14, bounds.size.w - 4, 14), GTextOverflowModeTrailingEllipsis,
+                     GRect(2, 16, bounds.size.w - 4, 14), GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentLeft, NULL);
 
-  const int16_t row_h = 22;
-  const int16_t list_top = 30;
+  // Two-line rows: sprite + status on top, progress/spool underneath (fits 32px art).
+  const int16_t row_h = 38;
+  const int16_t list_top = 34;
+  const int16_t list_bottom = (int16_t)(bounds.size.h - 20);
+  const int16_t usable = (int16_t)(list_bottom - list_top);
   uint8_t rows = (uint8_t)(f->owned_count + 1);
-  for (uint8_t i = 0; i < rows; i++) {
-    int16_t y = (int16_t)(list_top + i * row_h);
-    if (y + row_h > bounds.size.h - 22) break;
+  uint8_t visible = (uint8_t)(usable / row_h);
+  if (visible < 1) visible = 1;
+
+  uint8_t scroll = 0;
+  if (f->focus >= scroll + visible) {
+    scroll = (uint8_t)(f->focus + 1 - visible);
+  }
+  if (f->focus < scroll) scroll = f->focus;
+
+  for (uint8_t slot = 0; slot < visible; slot++) {
+    uint8_t i = (uint8_t)(scroll + slot);
+    if (i >= rows) break;
+    int16_t y = (int16_t)(list_top + slot * row_h);
 
     bool focused = (i == f->focus);
     if (focused) {
       graphics_context_set_fill_color(ctx, C_PANEL);
 #if defined(PBL_COLOR)
-      graphics_fill_rect(ctx, GRect(0, y, bounds.size.w, row_h - 1), 0, GCornerNone);
+      graphics_fill_rect(ctx, GRect(0, y, bounds.size.w, row_h - 2), 0, GCornerNone);
 #else
       graphics_context_set_stroke_color(ctx, C_FOCUS);
-      graphics_draw_rect(ctx, GRect(0, y, bounds.size.w, row_h - 1));
+      graphics_draw_rect(ctx, GRect(0, y, bounds.size.w - 1, row_h - 3));
 #endif
     }
 
     if (i < f->owned_count) {
       const Printer *p = &f->printers[i];
+      const int16_t text_x = 38;
+      const int16_t text_w = (int16_t)(bounds.size.w - text_x - 4);
+
       GBitmap *pb = s_bmp_printer[p->tier];
-      if (pb) draw_bmp(ctx, pb, GPoint(2, y + 1));
+      if (pb) draw_bmp(ctx, pb, GPoint(2, y + 2));
       else {
         graphics_context_set_fill_color(ctx, C_ACCENT);
-        graphics_fill_rect(ctx, GRect(4, y + 4, 14, 14), 0, GCornerNone);
+        graphics_fill_rect(ctx, GRect(4, y + 6, 28, 28), 0, GCornerNone);
       }
 
-      GBitmap *sg = status_glyph(p->status);
-      if (sg) draw_bmp(ctx, sg, GPoint(36, y + 3));
-
       graphics_context_set_text_color(ctx, status_color(p->status));
-      snprintf(line, sizeof(line), "P%u %s", (unsigned)(i + 1), status_name(p->status));
-      graphics_draw_text(ctx, line, fonts_get_system_font(FONT_KEY_GOTHIC_14),
-                         GRect(54, y, 50, 16), GTextOverflowModeTrailingEllipsis,
-                         GTextAlignmentLeft, NULL);
+      snprintf(line, sizeof(line), "P%u  %s", (unsigned)(i + 1), status_name(p->status));
+      graphics_draw_text(ctx, line, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                         GRect(text_x, y + 1, text_w - 18, 18),
+                         GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 
-      if (p->status == PrinterStatus_Printing || p->status == PrinterStatus_Done ||
-          p->status == PrinterStatus_Jam || p->status == PrinterStatus_Filament ||
-          p->status == PrinterStatus_Bed || p->status == PrinterStatus_Hotend) {
-        draw_progress_bar(ctx, GRect(104, y + 6, bounds.size.w - 108, 8), p->progress_pct);
+      GBitmap *sg = status_glyph(p->status);
+      if (sg) draw_bmp(ctx, sg, GPoint(bounds.size.w - 18, y + 2));
+
+      bool show_bar = (p->status == PrinterStatus_Printing || p->status == PrinterStatus_Done ||
+                       p->status == PrinterStatus_Jam || p->status == PrinterStatus_Filament ||
+                       p->status == PrinterStatus_Bed || p->status == PrinterStatus_Hotend);
+      if (show_bar) {
+        draw_progress_bar(ctx, GRect(text_x, y + 22, text_w, 10), p->progress_pct);
       } else {
+        graphics_context_set_text_color(ctx, C_DIM);
+        snprintf(line, sizeof(line), "%s", filament_name(p->filament));
+        graphics_draw_text(ctx, line, fonts_get_system_font(FONT_KEY_GOTHIC_14),
+                           GRect(text_x, y + 20, text_w - 18, 14),
+                           GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
         GBitmap *sp = s_bmp_spool[p->filament];
-        if (sp) draw_bmp(ctx, sp, GPoint(bounds.size.w - 18, y + 3));
+        if (sp) draw_bmp(ctx, sp, GPoint(bounds.size.w - 18, y + 18));
       }
     } else {
       graphics_context_set_text_color(ctx, C_ACCENT);
       graphics_draw_text(ctx, focused ? "> SHOP" : "  SHOP",
                          fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                         GRect(4, y, bounds.size.w - 8, 20),
+                         GRect(8, y + 8, bounds.size.w - 16, 22),
                          GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
     }
   }
@@ -224,42 +246,48 @@ static void draw_detail(GContext *ctx, GRect bounds, const Farm *f) {
   snprintf(line, sizeof(line), "PRINTER %u  %s", (unsigned)(f->detail_idx + 1),
            tier_name(p->tier));
   graphics_draw_text(ctx, line, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-                     GRect(2, 0, bounds.size.w - 4, 16), GTextOverflowModeTrailingEllipsis,
+                     GRect(2, 2, bounds.size.w - 24, 16), GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentLeft, NULL);
 
+  FilamentKind show = (p->status == PrinterStatus_Filament) ? f->filament_pick : p->filament;
+  if (s_bmp_spool[show]) {
+    draw_bmp(ctx, s_bmp_spool[show], GPoint(bounds.size.w - 20, 2));
+  }
+
+  const int16_t sprite_y = (bounds.size.h < 200) ? 44 : 52;
   GBitmap *pb = s_bmp_printer[p->tier];
-  if (pb) draw_bmp_centered(ctx, pb, GPoint(bounds.size.w / 2, 40));
+  if (pb) draw_bmp_centered(ctx, pb, GPoint(bounds.size.w / 2, sprite_y));
   else {
     graphics_context_set_fill_color(ctx, C_ACCENT);
-    graphics_fill_rect(ctx, GRect(bounds.size.w / 2 - 16, 24, 32, 32), 0, GCornerNone);
+    graphics_fill_rect(ctx, GRect(bounds.size.w / 2 - 16, sprite_y - 16, 32, 32), 0, GCornerNone);
   }
 
-  // Fail overlay
   if (p->status == PrinterStatus_Jam && s_bmp_fail_spaghetti) {
-    draw_bmp_centered(ctx, s_bmp_fail_spaghetti, GPoint(bounds.size.w / 2 + 18, 48));
+    draw_bmp_centered(ctx, s_bmp_fail_spaghetti, GPoint(bounds.size.w / 2 + 22, sprite_y + 10));
   } else if (p->status == PrinterStatus_Hotend && s_bmp_fail_flame) {
-    draw_bmp_centered(ctx, s_bmp_fail_flame, GPoint(bounds.size.w / 2 + 18, 48));
+    draw_bmp_centered(ctx, s_bmp_fail_flame, GPoint(bounds.size.w / 2 + 22, sprite_y + 10));
   } else if (p->status == PrinterStatus_Filament && s_bmp_fail_empty) {
-    draw_bmp_centered(ctx, s_bmp_fail_empty, GPoint(bounds.size.w / 2 + 18, 48));
+    draw_bmp_centered(ctx, s_bmp_fail_empty, GPoint(bounds.size.w / 2 + 22, sprite_y + 10));
   }
 
+  const int16_t info_y = (int16_t)(sprite_y + 28);
   graphics_context_set_text_color(ctx, status_color(p->status));
   if (p->job_name[0] && p->status != PrinterStatus_Idle) {
-    snprintf(line, sizeof(line), "%s  need %s", p->job_name, filament_name(p->job_need));
+    snprintf(line, sizeof(line), "%s · %s", p->job_name, filament_name(p->job_need));
   } else {
     snprintf(line, sizeof(line), "%s", status_name(p->status));
   }
   graphics_draw_text(ctx, line, fonts_get_system_font(FONT_KEY_GOTHIC_14),
-                     GRect(2, 60, bounds.size.w - 4, 16), GTextOverflowModeTrailingEllipsis,
-                     GTextAlignmentCenter, NULL);
+                     GRect(4, info_y, bounds.size.w - 8, 16),
+                     GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 
-  draw_progress_bar(ctx, GRect(10, 78, bounds.size.w - 20, 10), p->progress_pct);
+  draw_progress_bar(ctx, GRect(12, info_y + 18, bounds.size.w - 24, 12), p->progress_pct);
 
   graphics_context_set_text_color(ctx, C_TEXT);
   const char *action = "";
   switch (p->status) {
     case PrinterStatus_Idle:
-      snprintf(line, sizeof(line), "Load %s  SEL start", filament_name(p->filament));
+      snprintf(line, sizeof(line), "Load %s\nSEL start", filament_name(p->filament));
       action = line;
       break;
     case PrinterStatus_Done:
@@ -267,20 +295,20 @@ static void draw_detail(GContext *ctx, GRect bounds, const Farm *f) {
       action = line;
       break;
     case PrinterStatus_Jam:
-      action = "SEL mash cut  DN scrap";
+      action = "SEL mash cut\nDN scrap";
       break;
     case PrinterStatus_Filament:
-      snprintf(line, sizeof(line), "Pick %s  SEL load", filament_name(f->filament_pick));
+      snprintf(line, sizeof(line), "Pick %s\nSEL load", filament_name(f->filament_pick));
       action = line;
       break;
     case PrinterStatus_Bed:
-      action = "SEL re-level  DN scrap";
+      action = "SEL re-level\nDN scrap";
       break;
     case PrinterStatus_Hotend:
-      action = "SEL power-cycle  DN scrap";
+      action = "SEL power-cycle\nDN scrap";
       break;
     case PrinterStatus_Printing:
-      snprintf(line, sizeof(line), "%u%%  pay $%u", (unsigned)p->progress_pct,
+      snprintf(line, sizeof(line), "%u%% · pay $%u", (unsigned)p->progress_pct,
                (unsigned)p->job_pay);
       action = line;
       break;
@@ -289,7 +317,7 @@ static void draw_detail(GContext *ctx, GRect bounds, const Farm *f) {
       break;
   }
   graphics_draw_text(ctx, action, fonts_get_system_font(FONT_KEY_GOTHIC_14),
-                     GRect(2, 94, bounds.size.w - 4, 32), GTextOverflowModeWordWrap,
+                     GRect(4, info_y + 36, bounds.size.w - 8, 36), GTextOverflowModeWordWrap,
                      GTextAlignmentCenter, NULL);
 
   graphics_context_set_text_color(ctx, C_DIM);
@@ -297,12 +325,6 @@ static void draw_detail(GContext *ctx, GRect bounds, const Farm *f) {
   graphics_draw_text(ctx, hint, fonts_get_system_font(FONT_KEY_GOTHIC_14),
                      GRect(2, bounds.size.h - 18, bounds.size.w - 4, 16),
                      GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
-
-  // Spool preview
-  FilamentKind show = (p->status == PrinterStatus_Filament) ? f->filament_pick : p->filament;
-  if (s_bmp_spool[show]) {
-    draw_bmp(ctx, s_bmp_spool[show], GPoint(bounds.size.w - 20, 2));
-  }
 }
 
 static void draw_shop(GContext *ctx, GRect bounds, const Farm *f) {

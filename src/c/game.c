@@ -49,7 +49,7 @@ const char *status_name(PrinterStatus s) {
   switch (s) {
     case PrinterStatus_Offline: return "OFF";
     case PrinterStatus_Idle: return "idle";
-    case PrinterStatus_Printing: return "prn";
+    case PrinterStatus_Printing: return "run";
     case PrinterStatus_Done: return "DONE";
     case PrinterStatus_Jam: return "JAM";
     case PrinterStatus_Filament: return "FIL";
@@ -218,11 +218,13 @@ static void collect_done(Printer *p) {
 
 static uint8_t crisis_chance_pct(PrinterTier tier) {
   // Per tick (~0.5s) chance while printing. Scaled by settings.
-  uint8_t base = 2;
+  // Keep early game gentle — photo showed BED almost immediately.
+  uint8_t base = 1;
   if (s_farm.crisis_freq == 0) base = 1;
-  if (s_farm.crisis_freq == 2) base = 4;
+  if (s_farm.crisis_freq == 1) base = 1;
+  if (s_farm.crisis_freq == 2) base = 3;
   if (tier == PrinterTier_CoreXY && base > 1) base--;
-  if (tier == PrinterTier_Industrial && base > 1) base = (uint8_t)(base > 2 ? base - 2 : 1);
+  if (tier == PrinterTier_Industrial && base > 1) base = 1;
   return base;
 }
 
@@ -277,10 +279,9 @@ static void update_printer_progress(Printer *p) {
   }
   p->progress_pct = (uint8_t)((elapsed * 100) / p->job_duration_s);
 
-  // Crisis roll
-  if ((rand() % 100) < crisis_chance_pct(p->tier)) {
-    // Don't crisis in first 10%
-    if (p->progress_pct >= 10 && p->progress_pct < 95) {
+  // Crisis roll — skip first ~25% so new jobs aren't instantly broken
+  if (p->progress_pct >= 25 && p->progress_pct < 92) {
+    if ((rand() % 100) < crisis_chance_pct(p->tier)) {
       trigger_crisis(p);
     }
   }
