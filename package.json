@@ -1,0 +1,128 @@
+{
+  "name": "print-farm-simulator",
+  "author": "caffeinegamer",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app",
+    "game",
+    "3d-printing",
+    "idle"
+  ],
+  "private": true,
+  "dependencies": {
+    "@rebble/clay": "^1.1.0"
+  },
+  "pebble": {
+    "displayName": "Print Farm Simulator",
+    "uuid": "c9e6a1b3-4f7a-4d8c-b235-a0e2f69c4d81",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "emery",
+      "basalt",
+      "diorite",
+      "flint"
+    ],
+    "watchapp": {
+      "watchface": false
+    },
+    "capabilities": [
+      "configurable"
+    ],
+    "messageKeys": [
+      "VibeEnabled",
+      "CrisisFrequency",
+      "QuietHours"
+    ],
+    "resources": {
+      "media": [
+        {
+          "type": "bitmap",
+          "name": "IMAGE_MENU_ICON",
+          "file": "images/menu_icon.png",
+          "menuIcon": true
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_TITLE",
+          "file": "images/title.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_PRINTER_BASIC",
+          "file": "images/printer_basic.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_PRINTER_COREXY",
+          "file": "images/printer_corexy.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_PRINTER_INDUSTRIAL",
+          "file": "images/printer_industrial.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_SPOOL_PLA",
+          "file": "images/spool_pla.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_SPOOL_PETG",
+          "file": "images/spool_petg.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_SPOOL_ABS",
+          "file": "images/spool_abs.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_SPOOL_TPU",
+          "file": "images/spool_tpu.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_SPOOL_EXOTIC",
+          "file": "images/spool_exotic.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_STATUS_OK",
+          "file": "images/status_ok.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_STATUS_JAM",
+          "file": "images/status_jam.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_STATUS_HEAT",
+          "file": "images/status_heat.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_STATUS_WARN",
+          "file": "images/status_warn.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_FAIL_SPAGHETTI",
+          "file": "images/fail_spaghetti.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_FAIL_FLAME",
+          "file": "images/fail_flame.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "IMAGE_FAIL_EMPTY",
+          "file": "images/fail_empty.png"
+        }
+      ]
+    }
+  }
+}
